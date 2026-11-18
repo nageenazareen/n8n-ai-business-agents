@@ -1,0 +1,8 @@
+# Never commit credentials or local data
+.env
+.env.*
+*.pem
+*.key
+credentials*.json
+node_modules/
+.DS_Store
