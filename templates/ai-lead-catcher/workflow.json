@@ -1,0 +1,413 @@
+{
+  "name": "AI Lead Catcher",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## AI Lead Catcher\n\nWebsite form, then the AI scores the lead (Hot, Warm or Cold) and writes a personal reply. The reply is sent by Gmail and the lead is saved to Google Sheets.\n\nSetup:\n1. Edit Business Settings.\n2. Connect your chat model, Gmail and Google Sheets.\n3. Create a sheet with the columns listed in the README.\n\nNeed it set up for your business? evoxaitech.com",
+        "height": 300,
+        "width": 440
+      },
+      "name": "Setup Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -80,
+        -360
+      ]
+    },
+    {
+      "parameters": {
+        "formTitle": "Get a free consultation",
+        "formDescription": "Tell us what you need and we will reply within minutes.",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Name",
+              "placeholder": "Your full name",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Email",
+              "fieldType": "email",
+              "placeholder": "you@example.com",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Company",
+              "placeholder": "Company name"
+            },
+            {
+              "fieldLabel": "What do you need help with?",
+              "fieldType": "textarea",
+              "placeholder": "e.g. We miss WhatsApp messages after 10 PM",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Budget",
+              "fieldType": "dropdown",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "Under $300"
+                  },
+                  {
+                    "option": "$300 - $1,000"
+                  },
+                  {
+                    "option": "$1,000 - $3,000"
+                  },
+                  {
+                    "option": "$3,000+"
+                  },
+                  {
+                    "option": "Not sure yet"
+                  }
+                ]
+              },
+              "requiredField": true
+            }
+          ]
+        },
+        "options": {
+          "appendAttribution": false,
+          "respondWithOptions": {
+            "values": {
+              "formSubmittedText": "Thanks! Check your inbox, our reply is on its way."
+            }
+          }
+        }
+      },
+      "name": "Lead Form",
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "business_name",
+              "name": "business_name",
+              "value": "Your Business",
+              "type": "string"
+            },
+            {
+              "id": "sender_name",
+              "name": "sender_name",
+              "value": "Your Name",
+              "type": "string"
+            },
+            {
+              "id": "contact_email",
+              "name": "contact_email",
+              "value": "you@example.com",
+              "type": "string"
+            },
+            {
+              "id": "services",
+              "name": "services",
+              "value": "AI Chatbot, Workflow Automation, Custom Software",
+              "type": "string"
+            },
+            {
+              "id": "hot_budget",
+              "name": "hot_budget",
+              "value": "$1,000",
+              "type": "string"
+            },
+            {
+              "id": "timezone",
+              "name": "timezone",
+              "value": "Asia/Dubai",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "name": "Business Settings",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        220,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=New lead from the website form:\nName: {{ $json[\"Name\"] }}\nEmail: {{ $json[\"Email\"] }}\nCompany: {{ $json[\"Company\"] }}\nWhat they need: {{ $json[\"What do you need help with?\"] }}\nBudget: {{ $json[\"Budget\"] }}",
+        "hasOutputParser": true,
+        "messages": {
+          "messageValues": [
+            {
+              "message": "=You qualify inbound leads for {{ $('Business Settings').item.json.business_name }}. What we offer: {{ $('Business Settings').item.json.services }}.\n\nRead the lead and return ONLY the JSON object described by the format instructions.\n\nScoring:\n- Hot: clear need that matches our services AND a budget of {{ $('Business Settings').item.json.hot_budget }} or more, or an urgent timeline.\n- Warm: real need that matches our services, but a small or unclear budget or no timeline.\n- Cold: unrelated to our services, spam, or no real need.\n\nservice: the one best match from this list, or \"Not a fit\": {{ $('Business Settings').item.json.services }}.\n\nreply_subject and reply_body: a short, warm, personal email reply to the lead, written as {{ $('Business Settings').item.json.sender_name }} from {{ $('Business Settings').item.json.business_name }}.\n- Use the lead's first name and refer to their specific need in one sentence.\n- Offer a free 15-minute call. Do not quote prices, timelines or results, and do not promise anything.\n- If the lead wrote in Arabic, write the whole reply in Arabic. Otherwise write in English.\n- Plain text, 4 to 7 short lines, signed: {{ $('Business Settings').item.json.sender_name }}, {{ $('Business Settings').item.json.business_name }}, {{ $('Business Settings').item.json.contact_email }}\n- For Cold leads, reply politely and briefly, without pushing a call."
+            }
+          ]
+        }
+      },
+      "name": "AI Lead Scorer",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.5,
+      "position": [
+        460,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini"
+        },
+        "options": {}
+      },
+      "name": "Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        400,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"score\": \"Hot\",\n  \"score_reason\": \"Clear WhatsApp need, $1,000-$3,000 budget\",\n  \"service\": \"AI Chatbot\",\n  \"summary\": \"Dental clinic misses WhatsApp bookings after hours\",\n  \"reply_subject\": \"Your WhatsApp bookings, answered day and night\",\n  \"reply_body\": \"Hi Sara,\\n...\"\n}"
+      },
+      "name": "Lead JSON",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.2,
+      "position": [
+        580,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Lead Form').item.json[\"Email\"] }}",
+        "subject": "={{ $('AI Lead Scorer').item.json.output.reply_subject }}",
+        "emailType": "text",
+        "message": "={{ $('AI Lead Scorer').item.json.output.reply_body }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "name": "Reply to Lead",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        780,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Received At": "={{ $now.setZone($('Business Settings').item.json.timezone).toFormat('yyyy-MM-dd HH:mm') }}",
+            "Name": "={{ $('Lead Form').item.json[\"Name\"] }}",
+            "Email": "={{ $('Lead Form').item.json[\"Email\"] }}",
+            "Company": "={{ $('Lead Form').item.json[\"Company\"] }}",
+            "Need": "={{ $('Lead Form').item.json[\"What do you need help with?\"] }}",
+            "Budget": "={{ $('Lead Form').item.json[\"Budget\"] }}",
+            "Score": "={{ $('AI Lead Scorer').item.json.output.score }}",
+            "Service": "={{ $('AI Lead Scorer').item.json.output.service }}",
+            "Summary": "={{ $('AI Lead Scorer').item.json.output.summary }}",
+            "Reply Sent": "Yes"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Received At",
+              "displayName": "Received At",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Name",
+              "displayName": "Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Email",
+              "displayName": "Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Company",
+              "displayName": "Company",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Need",
+              "displayName": "Need",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Budget",
+              "displayName": "Budget",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Score",
+              "displayName": "Score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Service",
+              "displayName": "Service",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Summary",
+              "displayName": "Summary",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Reply Sent",
+              "displayName": "Reply Sent",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Save Lead",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        1000,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "Lead Form": {
+      "main": [
+        [
+          {
+            "node": "Business Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Business Settings": {
+      "main": [
+        [
+          {
+            "node": "AI Lead Scorer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Lead Scorer": {
+      "main": [
+        [
+          {
+            "node": "Reply to Lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Lead Scorer",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lead JSON": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI Lead Scorer",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reply to Lead": {
+      "main": [
+        [
+          {
+            "node": "Save Lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {}
+}
